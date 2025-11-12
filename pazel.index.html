@@ -1,0 +1,551 @@
+<!doctype html>
+
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Puzzle Game Seru — TRX</title>
+  <style>
+    /* === Root Variabel === */
+:root {
+  --bg: #0f172a;
+  --card: #0b1220;
+  --accent: #06b6d4;
+  --muted: #94a3b8;
+  --size: 80vmin;
+}
+
+/* === Reset & Base === */
+* {
+  box-sizing: border-box;
+}
+body {
+  font-family: Inter, Arial;
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #071124 0%, #071322 60%);
+  color: #e6eef6;
+}
+
+/* === Layout Utama === */
+.wrapper {
+  width: 100%;
+  max-width: 1100px;
+  padding: 20px;
+}
+.card {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+  border-radius: 12px;
+  padding: 18px;
+  box-shadow: 0 6px 24px rgba(2,6,23,0.6);
+}
+.main {
+  display: grid;
+  grid-template-columns: 1fr 420px;
+  gap: 18px;
+  margin-top: 18px;
+}
+@media (max-width: 900px) {
+  .main { grid-template-columns: 1fr; }
+}
+
+/* === Header & Controls === */
+header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  justify-content: space-between;
+}
+header h1 {
+  font-size: 20px;
+  margin: 0;
+}
+.controls {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+label {
+  font-size: 13px;
+  color: var(--muted);
+}
+.row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+/* === Form & Button === */
+select,
+input[type=range] {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: transparent;
+  color: var(--muted);
+}
+button {
+  background: var(--accent);
+  color: #022029;
+  border: none;
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: transform 0.2s;
+}
+button:hover {
+  transform: scale(1.05);
+}
+
+/* === Stage & Puzzle === */
+.stage {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.puzzle-wrap {
+  background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(0,0,0,0.02));
+  padding: 12px;
+  border-radius: 10px;
+  position: relative;
+}
+#puzzle {
+  width: var(--size);
+  height: var(--size);
+  max-width: calc(80vmin);
+  max-height: calc(80vmin);
+  position: relative;      /* penting untuk absolute tile */
+  touch-action: none;
+  user-select: none;
+}  
+
+
+.tile {
+  position: absolute;
+  /* dikecilin 4px dari tiap sisi slot */
+  width: calc((100% / var(--n)) - 4px);
+  height: calc((100% / var(--n)) - 4px);
+
+  background-size: calc(var(--n) * 100%) calc(var(--n) * 100%);
+  background-repeat: no-repeat;
+  border-radius: 6px;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.5);
+  cursor: grab;
+  transition: transform 0.3s ease; /* ada typo 00.3 -> benerin */
+}
+
+.tile.no-anim {
+  transition: none !important; /* dipakai saat render pertama */
+}
+.tile:active {
+  cursor: grabbing;
+  transform: scale(1.1) rotateZ(5deg);
+}
+/* === Panel & Aside === */
+aside { padding: 12px; }
+.panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.stat {
+  display: flex;
+  justify-content: space-between;
+  padding: 10px;
+  border-radius: 8px;
+  background: rgba(255,255,255,0.02);
+  color: var(--muted);
+}
+.hint {
+  font-size: 13px;
+  color: var(--muted);
+}
+footer {
+  margin-top: 12px;
+  display: flex;
+  justify-content: space-between;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+/* === Overlay === */
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(0deg, rgba(2,6,23,0.8), rgba(2,6,23,0.8));
+}
+.overlay .box {
+  background: var(--card);
+  padding: 22px;
+  border-radius: 12px;
+  text-align: center;
+  width: 90%;
+  max-width: 520px;
+  transform: scale(0);
+  transition: transform 0.3s;
+}
+.overlay.show { display: flex; }
+.overlay.show .box { transform: scale(1); }
+    
+    
+  </style>
+</head>
+<body>
+<div class="wrapper">
+  <!-- Bagian Menu -->
+  <div id="menu" class="card">
+    <header>
+      <h1>TRX Puzzle Seru 🎮</h1>
+      <div class="controls">
+        <label class="row">
+          <span style="color:var(--muted);font-size:13px;margin-right:6px">Level</span>
+          <select id="levelSelect">
+            <option value="2">2 x 2</option>
+            <option value="3" selected>3 x 3</option>
+            <option value="4">4 x 4</option>
+            <option value="5">5 x 5</option>
+          </select>
+        </label>
+        <button id="startBtn">Mulai</button>
+      </div>
+    </header>  
+   <hr style="border: none; border-top: 2px solid #ffffff; margin: 2rem 0;">  
+    <!-- Pilih File dipisah dari header -->
+    <div class="file-section" style="margin-top:15px; padding:10px; text-align:left;">
+  <input id="filePicker" type="file" accept="image/*">
+  
+  <div id="previewBox" style="margin-top:10px;">
+    <img id="previewThumb" src="" alt="Preview gambar"
+         style="max-width:200px; max-height:200px; border-radius:8px; display:none;">
+  </div>
+
+  <!-- Tombol hapus -->
+  <button id="clearBtn" style="margin-top:8px; display:none;">Hapus</button>
+</div>
+
+  </div>
+
+
+  <!-- Bagian Game -->
+  <div id="game" class="card" style="display:none;">
+    <div class="main">
+     <h2 style="color:#80eaff; text-align:center;">🎉 SELAMAT BERMAIN! 🎉</h2>   
+      <section class="stage">
+        <div class="puzzle-wrap">
+          <div id="puzzle" aria-label="Area puzzle" role="application"></div>
+        </div>
+      </section>  <button id="shuffleBtn" title="Acak ulang">Acak</button>
+      <aside>
+        <div class="panel">
+          <div class="stat"><div>Waktu</div><div id="timer">0s</div></div>
+          <div class="stat"><div>Gerakan</div><div id="moves">0</div></div>
+          <div class="stat"><div>Level</div><div id="levelLabel">3x3</div></div>
+          <div class="hint">Tahan & geser potongan, lepas di kotak lain. Nikmati efek animasi!</div>
+          <div class="row">
+            <input id="imageInput" type="file" accept="image/*">
+            <button id="resetBtn" title="Kembali ke Menu">Menu</button><button id="resetrBtn">Reset</button>
+          </div>
+          <footer>
+            <div>Puzzle Seru</div>
+            <div style="color:var(--muted)">by TRXrevolution</div>
+          </footer>
+        </div>
+      </aside>
+    </div>
+  </div>
+</div>
+<div id="finishOverlay" class="overlay" role="dialog" aria-modal="true">
+  <div class="box" style="text-align: center;">
+    <h2 id="finishTitle">Selamat! 🎉</h2>
+    <p id="finishText">Kamu menyelesaikan puzzle dengan seru!</p>
+    <p style="font-weight:700" id="scoreText">Waktu: 0s · Gerakan: 0</p>
+    <div style="display: flex; flex-direction: column; align-items: center;">
+      <img id="fullImage" src="" style="display:none;max-width:75%;max-height:75vh;margin-top:10px;border-radius:10px;"/>
+      <button id="viewImageBtn">Lihat Gambar</button>
+    </div>
+    <div style="margin-top:12px; display:flex; gap:8px; justify-content:center">
+      <button id="retryBtn">Ulangi</button>
+      <button id="resetrBtn">Reset</button>
+      <button id="menuBtn">Kembali ke Menu</button>
+    </div>
+  </div>
+</div>
+
+  <script>
+      
+      const resetrBtn = document.getElementById("resetrBtn");
+
+resetrBtn.addEventListener("click", () => {
+    // Reload halaman
+    location.reload();
+});
+
+const filePicker   = document.getElementById('filePicker');
+const previewThumb = document.getElementById('previewThumb');
+const clearBtn     = document.getElementById('clearBtn');
+
+filePicker.addEventListener('change', (e) => {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  const url = URL.createObjectURL(file);
+
+  // preview
+  previewThumb.src = url;
+  previewThumb.style.display = "block";
+  clearBtn.style.display = "block";
+
+  // puzzle
+  imgURL = url;
+});
+
+// tombol hapus
+clearBtn.addEventListener('click', () => {
+  filePicker.value = "";            // kosongkan input
+  previewThumb.src = "";            // hapus gambar
+  previewThumb.style.display = "none";
+  clearBtn.style.display = "none";
+  imgURL = "";                      // reset gambar puzzle
+});
+
+  // ====== AMBIL SEMUA ELEMEN ======
+ 
+  const puzzleEl       = document.getElementById('puzzle');
+  const levelSelect    = document.getElementById('levelSelect');
+  const levelLabel     = document.getElementById('levelLabel');
+  const startBtn       = document.getElementById('startBtn');
+  const shuffleBtn     = document.getElementById('shuffleBtn');
+  const resetBtn       = document.getElementById('resetBtn');
+  const timerEl        = document.getElementById('timer');
+  const movesEl        = document.getElementById('moves');
+  const finishOverlay  = document.getElementById('finishOverlay');
+  const scoreText      = document.getElementById('scoreText');
+  const retryBtn       = document.getElementById('retryBtn');
+  const menuBtn        = document.getElementById('menuBtn');
+  const imagePreview   = document.getElementById('imagePreview');
+  const imageInput     = document.getElementById('imageInput');
+  const fullImage      = document.getElementById('fullImage');
+  const viewImageBtn   = document.getElementById('viewImageBtn');
+  const menuEl         = document.getElementById('menu');
+  const gameEl         = document.getElementById('game');
+
+  // ====== VAR GAME ======
+  let N = parseInt(levelSelect.value);
+  let positions = [], original = [], moves = 0, timer = 0, timerInterval = null;
+  let imgURL = 'https://picsum.photos/900/900?random=42';
+  let dragging = null;
+
+  // ====== FUNGSI UTAMA ======
+  function setGridVar(n){ document.documentElement.style.setProperty('--n', n); }
+  function updateLabels(){ levelLabel.textContent = N+'x'+N; }
+
+  function buildGrid(){
+  puzzleEl.innerHTML = '';
+  setGridVar(N);
+  const total = N * N;
+  positions = Array.from({length: total}, (_, i) => i);
+  original = positions.slice();
+
+  for (let i=0; i<total; i++){
+    const tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.dataset.piece = i;
+    tile.style.backgroundImage = `url(${imgURL})`;
+    tile.addEventListener('pointerdown', onPointerDown);
+    puzzleEl.appendChild(tile);
+  }
+  render();
+}
+    
+  function render(){
+  const tileSize = puzzleEl.clientWidth / N;
+
+  positions.forEach((pieceIndex, slot) => {
+    const tile = puzzleEl.querySelector(`.tile[data-piece='${pieceIndex}']`);
+
+    // hitung row/col untuk slot saat ini
+    const row = Math.floor(slot / N);
+    const col = slot % N;
+
+    // geser tile ke posisi slot
+    tile.style.transform = `translate(${col * tileSize}px, ${row * tileSize}px)`;
+
+    // atur posisi background agar potongan pas
+    const imgRow = Math.floor(pieceIndex / N);
+    const imgCol = pieceIndex % N;
+    const xPct = (imgCol / (N-1)) * 100;
+    const yPct = (imgRow / (N-1)) * 100;
+    tile.style.backgroundPosition = `${xPct}% ${yPct}%`;
+  });
+}
+
+  function shufflePositions(){
+    for(let i=positions.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [positions[i],positions[j]] = [positions[j],positions[i]];
+    }
+    if(isSolved() && positions.length>1)
+      [positions[0],positions[1]] = [positions[1],positions[0]];
+    render();
+  }
+
+  function isSolved(){ return positions.every((v,i)=>v===original[i]); }
+
+  function startTimer(){
+    stopTimer();
+    timer = 0;
+    timerEl.textContent = '0s';
+    timerInterval = setInterval(()=>{
+      timer++;
+      timerEl.textContent = timer+'s';
+    },1000);
+  }
+  function stopTimer(){
+    if(timerInterval){ clearInterval(timerInterval); timerInterval=null; }
+  }
+
+  function swapSlots(a,b){
+    if(a===b) return;
+    [positions[a],positions[b]] = [positions[b],positions[a]];
+    moves++;
+    movesEl.textContent = moves;
+    render();
+    if(isSolved()) onWin();
+  }
+
+  function onWin(){
+    stopTimer();
+    scoreText.textContent = `Waktu: ${timer}s · Gerakan: ${moves}`;
+    finishOverlay.classList.add('show');
+  }
+
+  function onPointerDown(e){
+  e.preventDefault();
+  const tile = e.currentTarget;
+  const pieceIndex = parseInt(tile.dataset.piece);
+
+  // cari posisi slot tile ini sekarang
+  const currentSlot = positions.indexOf(pieceIndex);
+
+  tile.setPointerCapture(e.pointerId);
+  tile.style.transform += " scale(1.1) rotateZ(5deg)";
+
+  function onPointerUp(ev){
+    ev.preventDefault();
+    tile.releasePointerCapture(ev.pointerId);
+
+    // hitung posisi kursor → slot target
+    const rect = puzzleEl.getBoundingClientRect();
+    const tileSize = rect.width / N;
+    const col = Math.floor((ev.clientX - rect.left) / tileSize);
+    const row = Math.floor((ev.clientY - rect.top) / tileSize);
+    const targetSlot = row * N + col;
+
+    // swap tile antar slot
+    swapSlots(currentSlot, targetSlot);
+
+    // reset gaya
+    render();
+    tile.style.transform = tile.style.transform.replace(" scale(1.1) rotateZ(5deg)", "");
+
+    cleanup();
+  }
+
+  function cleanup(){
+    tile.removeEventListener('pointerup', onPointerUp);
+    tile.removeEventListener('pointercancel', onPointerUp);
+  }
+
+  tile.addEventListener('pointerup', onPointerUp);
+  tile.addEventListener('pointercancel', onPointerUp);
+}
+  // ====== EVENT LISTENER ======
+
+  // Tombol Mulai → dari Menu ke Game
+ startBtn.addEventListener('click', () => {
+  menuEl.style.display = "none";
+  gameEl.style.display = "block";
+  N = parseInt(levelSelect.value);
+  updateLabels();
+  moves = 0;
+  movesEl.textContent = '0';
+  finishOverlay.classList.remove('show');
+
+  // pastikan gambar sudah dimuat dulu
+  const img = new Image();
+  img.src = imgURL;
+  img.onload = () => {
+    buildGrid();   // bangun puzzle rapi
+    startTimer();  // mulai hitung waktu
+
+    // kasih delay sebelum acak
+    setTimeout(() => {
+      shufflePositions();
+    }, 1500);
+  };
+});
+
+  // Acak ulang puzzle
+  shuffleBtn.addEventListener('click',()=>{
+    shufflePositions();
+    moves=0;
+    movesEl.textContent='0';
+  });
+
+  // Tombol Menu (reset) → balik ke Menu
+  resetBtn.addEventListener('click',()=>{
+    gameEl.style.display = "none";
+    menuEl.style.display = "block";
+    stopTimer();
+  });
+
+  // Retry setelah menang
+  retryBtn.addEventListener('click',()=>{
+    finishOverlay.classList.remove('show');
+    shufflePositions();
+    moves=0; movesEl.textContent='0';
+    startTimer();
+  });
+
+  // Tombol Menu di overlay
+  menuBtn.addEventListener('click', () => {
+  finishOverlay.classList.remove('show');
+  gameEl.style.display = "none";
+  menuEl.style.display = "block";
+  stopTimer();
+
+  // 🔑 Reset preview gambar
+  fullImage.style.display = 'none';
+  viewImageBtn.style.display = 'inline-block';
+});
+
+  // Upload gambar custom
+  imageInput.addEventListener('change',(e)=>{
+    const f = e.target.files[0];
+    if(!f) return;
+    imgURL = URL.createObjectURL(f);
+    buildGrid();
+    shufflePositions();
+    moves=0; movesEl.textContent='0';
+    startTimer();
+  });
+
+  // View full image
+  viewImageBtn.addEventListener('click',()=>{
+    fullImage.src = imgURL;
+    fullImage.style.display = 'block';
+    viewImageBtn.style.display = 'none';
+  });
+
+  // Update label awal
+  updateLabels();
+</script>
+</body>
+</html>
