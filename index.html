@@ -3,28 +3,43 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Endless Runner — Game PC (HTML5)</title>
+  <title>Endless Runner — Game PC - Buatan YahyaIXA 😎 </title>
+  <!-- INI UNTUK CSS -->
   <style>
+    // ROOT untuk mempermudah warna dan lain lain
     :root{--bg:#0f1724;--ground:#111827;--player:#f97316;--obst:#ef4444;--text:#e6eef8}
+    
     *{box-sizing:border-box}
+    
     html,body{height:100%;margin:0;font-family:Inter, system-ui, Arial, sans-serif;background:linear-gradient(180deg,var(--bg),#061022);color:var(--text)}
+    
     .wrap{max-width:900px;margin:28px auto;padding:18px}
+    
     header{display:flex;align-items:center;justify-content:space-between}
+    
     h1{font-size:20px;margin:0}
-    .controls{display:flex;gap:8px;align-items:center}
+    
+    .controls{display:flex;gap:10px;align-items:center}
+    
     button{background:#0b1220;color:var(--text);border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:8px;cursor:pointer}
+    
     canvas{display:block;margin:18px auto;background:linear-gradient(180deg,#05233a, #03202d);border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.6)}
+    
     .info{display:flex;gap:12px;align-items:center;font-size:14px}
+    
     .small{opacity:0.8;font-size:13px}
+    
     footer{margin-top:8px;font-size:13px;color:rgba(230,238,248,0.75)}
+    
   </style>
 </head>
 <body>
+  <!-- INI UNTUK ELEMEN ELEMEN BODY NYA -->
   <div class="wrap">
     <header>
-      <h1>Endless Runner — Tekan Spasi untuk lompat - dibuat oleh yahyaIXA</h1>
+      <h1>Endless Runner — Tekan Spasi untuk lompat - dibuat oleh yahyaIXA 😎</h1>
       <div class="controls">
-        <button id="btn-start">Mulai / Restart</button>
+        <button id="btn-start">Mulai ulang lagi </button>
         <div class="info small">Score: <strong id="score">0</strong> — High: <strong id="high">0</strong></div>
       </div>
     </header>
@@ -36,14 +51,14 @@
       <div class="small">Dibuat dengan HTML5 Canvas + JavaScript — Simpel, mudah dimainkan.</div>
     </footer>
   </div><br><br><br>
-      <div style="text-align:center">coba mainkan game lainnya: puzzle sederhana</div><br>
+      <div style="text-align:center">coba mainkan game lainnya: puzzle sederhana - hati hati nanti keseruan 😆</div><br>
 <center>
   <a href="pazel.index.html">
-    <button>Main Sekarang</button>
+    <button style="color:white;background:cyan;>Main Sekarang juga!</button>
   </a>
 </center>
 
-
+<!-- INI UNTUK SCRIPT ATAU LOGIKA PERMAINAN -->
   <script>
   // ======= Config & Utilities =======
   const canvas = document.getElementById('game');
@@ -205,3 +220,4 @@
   </script>
 </body>
 </html>
+<!-- YAHYA IX A PROYEK SEDERHANA SEKOLAH -->
