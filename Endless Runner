@@ -1,0 +1,200 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Endless Runner — Game PC (HTML5)</title>
+  <style>
+    :root{--bg:#0f1724;--ground:#111827;--player:#f97316;--obst:#ef4444;--text:#e6eef8}
+    *{box-sizing:border-box}
+    html,body{height:100%;margin:0;font-family:Inter, system-ui, Arial, sans-serif;background:linear-gradient(180deg,var(--bg),#061022);color:var(--text)}
+    .wrap{max-width:900px;margin:28px auto;padding:18px}
+    header{display:flex;align-items:center;justify-content:space-between}
+    h1{font-size:20px;margin:0}
+    .controls{display:flex;gap:8px;align-items:center}
+    button{background:#0b1220;color:var(--text);border:1px solid rgba(255,255,255,0.06);padding:8px 12px;border-radius:8px;cursor:pointer}
+    canvas{display:block;margin:18px auto;background:linear-gradient(180deg,#05233a, #03202d);border-radius:8px;box-shadow:0 8px 30px rgba(0,0,0,0.6)}
+    .info{display:flex;gap:12px;align-items:center;font-size:14px}
+    .small{opacity:0.8;font-size:13px}
+    footer{margin-top:8px;font-size:13px;color:rgba(230,238,248,0.75)}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <h1>Endless Runner — Tekan Spasi untuk lompat - dibuat oleh yahyaIXA</h1>
+      <div class="controls">
+        <button id="btn-start">Mulai / Restart</button>
+        <div class="info small">Score: <strong id="score">0</strong> — High: <strong id="high">0</strong></div>
+      </div>
+    </header>
+
+    <canvas id="game" width="900" height="300"></canvas>
+
+    <div class="small">Kontrol: Space / Panah Atas = Lompat, Panah Bawah = Turun. Cocok untuk dimainkan di PC dengan keyboard.</div>
+    <footer>
+      <div class="small">Dibuat dengan HTML5 Canvas + JavaScript — Simpel, mudah dimainkan.</div>
+    </footer>
+  </div>
+
+  <script>
+  // ======= Config & Utilities =======
+  const canvas = document.getElementById('game');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width; const H = canvas.height;
+
+  let running = false;
+  let score = 0;
+  let highScore = Number(localStorage.getItem('endless_high') || 0);
+  document.getElementById('high').textContent = highScore;
+
+  // Game objects
+  const player = {
+    x: 80, y: H - 70, w: 40, h: 48,
+    vy: 0, gravity: 0.9, jumpPower: 15, grounded: true,
+    crouch: false
+  };
+
+  const groundY = H - 20;
+
+  let obstacles = [];
+  let spawnTimer = 0;
+  let speed = 6; // world speed
+
+  // ======= Input =======
+  const keys = {};
+  window.addEventListener('keydown', e => {
+    keys[e.code] = true;
+    if (!running && (e.code === 'Space' || e.code === 'ArrowUp')) startGame();
+    // prevent page scroll when pressing space
+    if (['Space','ArrowUp','ArrowDown'].includes(e.code)) e.preventDefault();
+  });
+  window.addEventListener('keyup', e => { keys[e.code] = false; });
+
+  document.getElementById('btn-start').addEventListener('click', startGame);
+
+  // ======= Game functions =======
+  function resetGame(){
+    score = 0; document.getElementById('score').textContent = score;
+    obstacles = [];
+    spawnTimer = 0; speed = 6;
+    player.y = H - 70; player.vy = 0; player.grounded = true; player.crouch = false;
+  }
+
+  function startGame(){
+    resetGame();
+    running = true;
+    loop();
+  }
+
+  function gameOver(){
+    running = false;
+    if (score > highScore){ highScore = score; localStorage.setItem('endless_high', highScore); document.getElementById('high').textContent = highScore; }
+    // show a semi-transparent overlay
+    ctx.fillStyle = 'rgba(2,6,23,0.6)'; ctx.fillRect(0,0,W,H);
+    ctx.fillStyle = '#fff'; ctx.textAlign='center'; ctx.font = '22px Arial';
+    ctx.fillText('Game Over — Klik "Mulai / Restart" atau tekan Space', W/2, H/2 - 10);
+    ctx.font = '16px Arial'; ctx.fillText('Score: '+score+'  •  High: '+highScore, W/2, H/2 + 18);
+  }
+
+  function spawnObstacle(){
+    // Randomize obstacle size and height
+    const h = 20 + Math.floor(Math.random()*46);
+    const w = 18 + Math.floor(Math.random()*40);
+    obstacles.push({x: W + 20, y: groundY - h, w, h, passed:false});
+  }
+
+  function update(dt){
+    // dt unused for now, but could be used for time-based movement
+
+    // Player input
+    if ((keys['Space'] || keys['ArrowUp']) && player.grounded){
+      player.vy = -player.jumpPower; player.grounded = false; player.crouch = false;
+    }
+    player.crouch = !!keys['ArrowDown'] && player.grounded;
+
+    // Apply physics
+    player.vy += player.gravity; player.y += player.vy;
+    if (player.y + player.h >= groundY){ player.y = groundY - player.h; player.vy = 0; player.grounded = true; }
+
+    // Increase speed gradually
+    if (running && score % 100 === 0 && score !== 0) speed = 6 + Math.floor(score / 200);
+
+    // Obstacles movement
+    for (let i = obstacles.length-1; i>=0; i--){
+      const o = obstacles[i];
+      o.x -= speed;
+      if (!o.passed && o.x + o.w < player.x){ score++; o.passed = true; document.getElementById('score').textContent = score; }
+      // remove off-screen
+      if (o.x + o.w < -50) obstacles.splice(i,1);
+      // collision detection (AABB)
+      if (rectIntersect(player.x, player.y, player.w, player.h, o.x, o.y, o.w, o.h)){
+        gameOver();
+      }
+    }
+
+    // spawn logic
+    spawnTimer -= 1;
+    if (spawnTimer <= 0){ spawnObstacle(); spawnTimer = 60 + Math.floor(Math.random()*90); }
+  }
+
+  function rectIntersect(x1,y1,w1,h1,x2,y2,w2,h2){
+    return !(x2 > x1 + w1 || x2 + w2 < x1 || y2 > y1 + h1 || y2 + h2 < y1);
+  }
+
+  function draw(){
+    // clear
+    ctx.clearRect(0,0,W,H);
+
+    // sky gradient
+    const g = ctx.createLinearGradient(0,0,0,H);
+    g.addColorStop(0,'#0a3150'); g.addColorStop(1,'#033046');
+    ctx.fillStyle = g; ctx.fillRect(0,0,W,H);
+
+    // ground
+    ctx.fillStyle = '#052029'; ctx.fillRect(0,groundY, W, H-groundY);
+    // ground lines
+    for (let x=0;x<W;x+=40){ ctx.fillStyle = 'rgba(255,255,255,0.02)'; ctx.fillRect(x, groundY+6, 20, 2); }
+
+    // player
+    ctx.save();
+    ctx.fillStyle = '#ff8a42';
+    if (player.crouch){ ctx.fillRect(player.x, player.y + 12, player.w, player.h - 12); }
+    else{ ctx.fillRect(player.x, player.y, player.w, player.h); }
+    ctx.restore();
+
+    // obstacles
+    ctx.fillStyle = '#ff6b6b';
+    obstacles.forEach(o => { ctx.fillRect(o.x, o.y, o.w, o.h); });
+
+    // scoreboard
+    ctx.fillStyle = 'rgba(230,238,248,0.9)'; ctx.font = '16px Arial'; ctx.textAlign='left';
+    ctx.fillText('Score: '+score, 12, 22);
+    ctx.fillText('High: '+highScore, 12, 40);
+
+    // hint when not running
+    if (!running){ ctx.fillStyle='rgba(230,238,248,0.9)'; ctx.textAlign='center'; ctx.font='15px Arial'; ctx.fillText('Klik "Mulai / Restart" atau tekan Space untuk mulai', W/2, H/2 - 70); }
+  }
+
+  // Game loop: basic
+  let last = performance.now();
+  function loop(now){
+    if (!now) now = performance.now();
+    const dt = now - last; last = now;
+    if (running){ update(dt); draw(); requestAnimationFrame(loop); }
+    else{ draw(); }
+  }
+
+  // initial draw
+  draw();
+
+  // Responsive canvas resizing (keeps aspect ratio)
+  window.addEventListener('resize', () => {
+    const maxW = Math.min(1100, window.innerWidth - 40);
+    const scale = Math.min(1, maxW / 900);
+    canvas.style.width = Math.floor(900 * scale) + 'px';
+  });
+  window.dispatchEvent(new Event('resize'));
+  </script>
+</body>
+</html>
