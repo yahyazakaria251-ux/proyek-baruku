@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>Endless Runner — Game PC - Buatan YahyaIXA 😎 </title>
 
-  <!-- Google Font -->
   <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
 
   <style>
@@ -39,8 +38,9 @@
   button:hover{transform:translateY(-3px)}
   .game-wrap{position:relative;margin-top:20px}
   canvas#game{display:block;margin:0 auto;background:linear-gradient(180deg,#05233a,#031a2c);border-radius:16px;box-shadow:0 12px 40px rgba(2,6,23,0.7);max-width:100%;width:900px;height:300px}
-  .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;pointer-events:none}
-  .panel{pointer-events:auto;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.05);padding:22px;border-radius:12px;text-align:center;box-shadow:0 12px 30px rgba(0,0,0,0.6)}
+  .overlay{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+    pointer-events:none;transition:opacity .3s ease-in-out;opacity:0}
+  .panel{pointer-events:auto;background:linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));border:1px solid rgba(255,255,255,0.05);padding:22px;border-radius:12px;text-align:center;box-shadow:0 12px 30px rgba(0,0,0,0.6); transition: opacity .4s ease-in-out;}
   .panel h2{margin:0 0 8px;font-size:20px;color:#fff}
   .panel p{margin:0 0 12px;color:var(--muted);font-size:14px}
   .small{opacity:0.85;font-size:14px;margin-top:12px;color:var(--muted)}
@@ -65,16 +65,24 @@
     </div>
   </header>
 
-  <div class="game-wrap" style="margin-top:18px;">
+   <div class="game-wrap" style="margin-top:18px;">
     <canvas id="game" width="900" height="300"></canvas>
 
-    <div class="overlay" id="overlay">
-      <div class="panel" id="overlay-panel">
-        <h2>Siap bermain?</h2>
-        <p>Tekan <strong>Space</strong> atau klik "Mulai / Restart" untuk mulai. Gunakan ↑ untuk lompat dan ↓ untuk turun.</p>
-        <div style="display:flex;gap:8px;justify-content:center;">
-          <button id="overlay-start" class="primary">Mulai</button>
-          <button id="overlay-how" style="background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)">Cara Main</button>
+    <div class="overlay" id="overlay"> 
+      
+      <div class="panel" id="overlay-panel" style="display:none; opacity:1; padding:0;"> 
+        <video id="gameover-video" width="900" height="300" muted playsinline style="display:none; width:900px; height:300px; max-width:100%; object-fit: cover;">
+            <source src="gameover.mp4" type="video/mp4">
+            Maaf, browser Anda tidak mendukung tag video.
+        </video>
+        
+        <div id="text-content" style="padding:22px;"> <h2 id="overlay-title">Siap bermain?</h2>
+            <p id="overlay-text">Tekan <strong>Space</strong> atau klik "Mulai / Restart" untuk mulai. Gunakan ↑ untuk lompat dan ↓ untuk turun.</p>
+            
+            <div id="button-wrap" style="display:flex;gap:8px;justify-content:center;">
+              <button id="overlay-start" class="primary">Mulai</button>
+              <button id="overlay-how" style="background:transparent;border:1px solid rgba(255,255,255,0.06);color:var(--muted)">Cara Main</button>
+            </div>
         </div>
       </div>
     </div>
@@ -97,21 +105,29 @@
 </div>
 
 <script>
-/* ====== Game logic (diperbaiki agar tidak crash jika elemen belum ada) ====== */
+/* ====== Game logic (Final Version with Video, Countdown, and Full-Screen Overlay) ====== */
 const canvas = document.getElementById('game');
 const ctx = canvas.getContext('2d');
 const W = canvas.width, H = canvas.height;
 
 let running = false;
+let countdown = 0; 
 let score = 0;
 let highScore = Number(localStorage.getItem('endless_high') || 0);
 
-// safe DOM references (elemen ada di markup sekarang)
+// Safe DOM references
 const scoreEl = document.getElementById('score');
 const highEl = document.getElementById('high');
 const btnStart = document.getElementById('btn-start');
 const overlay = document.getElementById('overlay');
 const overlayStart = document.getElementById('overlay-start');
+const overlayTitle = document.getElementById('overlay-title');
+const overlayText = document.getElementById('overlay-text');
+
+// Panel elements
+const gamePanel = document.getElementById('overlay-panel'); 
+const gameoverVideo = document.getElementById('gameover-video'); 
+const textContent = document.getElementById('text-content'); // Referensi wrapper teks/tombol (NEW)
 
 if (scoreEl) scoreEl.textContent = score;
 if (highEl) highEl.textContent = highScore;
@@ -127,7 +143,10 @@ let speed = 6;
 const keys = {};
 window.addEventListener('keydown', e => {
   keys[e.code] = true;
-  if (!running && (e.code === 'Space' || e.code === 'ArrowUp')) startGame();
+  // Memulai game saat overlay aktif dan tombol ditekan (hanya dari panel Siap Bermain/Game Over)
+  if (!running && gamePanel.style.display !== 'none' && (e.code === 'Space' || e.code === 'ArrowUp')) {
+      startGame();
+  }
   if (['Space','ArrowUp','ArrowDown'].includes(e.code)) e.preventDefault();
 });
 window.addEventListener('keyup', e => { keys[e.code] = false; });
@@ -139,7 +158,9 @@ document.getElementById('overlay-how').addEventListener('click', ()=> {
   alert('Cara main: Tekan Spasi atau Panah Atas untuk lompat. Panah Bawah untuk turun saat di tanah.');
 });
 
-// game functions
+
+// Game Logic Functions
+
 function resetGame(){
   score = 0; if (scoreEl) scoreEl.textContent = score;
   obstacles = [];
@@ -150,31 +171,22 @@ function resetGame(){
 
 function startGame(){
   resetGame();
-  running = true;
   hideOverlay();
-  // ensure loop is running (loop always runs via RAF)
-}
+  
+  // Pastikan elemen Game Over disembunyikan dan padding panel kembali normal
+  gamePanel.style.padding = '22px'; // Kembalikan padding normal
+  textContent.style.display = 'block';
+  if (gameoverVideo) gameoverVideo.style.display = 'none';
 
-function showOverlay(message){
-  const panel = document.getElementById('overlay-panel');
-  if (panel && message){
-    panel.querySelector('h2').textContent = 'Game Over';
-    panel.querySelector('p').textContent = message;
-    overlay.style.pointerEvents = 'auto';
-    overlay.style.opacity = '1';
-  }
-  overlay.style.display = 'flex';
+  // Inisialisasi hitungan mundur 3 detik (180 frame)
+  countdown = 180;
+  running = false; 
 }
 
 function hideOverlay(){
   overlay.style.pointerEvents = 'none';
-  overlay.style.display = 'none';
-  // restore overlay text to default for next time
-  const panel = document.getElementById('overlay-panel');
-  if (panel){
-    panel.querySelector('h2').textContent = 'Siap bermain?';
-    panel.querySelector('p').textContent = 'Tekan Space atau klik "Mulai / Restart" untuk mulai. Gunakan ↑ untuk lompat dan ↓ untuk turun.';
-  }
+  overlay.style.opacity = '0';
+  gamePanel.style.display = 'none';
 }
 
 function gameOver(){
@@ -184,7 +196,43 @@ function gameOver(){
     localStorage.setItem('endless_high', highScore);
     if (highEl) highEl.textContent = highScore;
   }
-  showOverlay('Klik "Mulai / Restart" atau tekan Space untuk mulai lagi. Score: ' + score + ' • High: ' + highScore);
+  
+  // 1. Tampilkan Overlay
+  overlay.style.pointerEvents = 'auto';
+  overlay.style.opacity = '1';
+  gamePanel.style.display = 'block';
+
+  // 2. Sembunyikan Konten Teks/Tombol untuk memberi tempat video full-screen
+  gamePanel.style.padding = '0'; // HAPUS padding agar video full layar
+  textContent.style.display = 'none'; 
+
+  // 3. Tampilkan dan Putar Video
+  if (gameoverVideo) {
+    gameoverVideo.style.display = 'block';
+    gameoverVideo.load(); 
+    gameoverVideo.play().catch(e => console.error("Video Play Failed:", e));
+    
+    // 4. Set Event Listener: Setelah Video Selesai
+    gameoverVideo.onended = () => {
+      gameoverVideo.style.display = 'none';
+      gameoverVideo.onended = null;
+      
+      // 5. Tampilkan Kembali Konten Teks/Tombol
+      gamePanel.style.padding = '22px'; // Kembalikan padding normal
+      textContent.style.display = 'block'; 
+
+      // Atur Teks Game Over
+      overlayTitle.textContent = 'Game Over! 💔';
+      overlayText.textContent = 'Score Akhir: ' + score + ' • High: ' + highScore + '. Klik "Mulai" atau Space untuk coba lagi.';
+    };
+  } else {
+    // Jika Video tidak ada/gagal dimuat, langsung tampilkan teks Game Over
+    gamePanel.style.padding = '22px';
+    textContent.style.display = 'block';
+
+    overlayTitle.textContent = 'Game Over! 💔';
+    overlayText.textContent = 'Score Akhir: ' + score + ' • High: ' + highScore + '. Klik "Mulai" atau Space untuk coba lagi.';
+  }
 }
 
 function spawnObstacle(){
@@ -194,6 +242,17 @@ function spawnObstacle(){
 }
 
 function update(dt){
+  // LOGIC HITUNGAN MUNDUR
+  if (countdown > 0) {
+      countdown -= 1;
+      if (countdown <= 0) {
+          running = true; 
+      }
+      return; 
+  }
+  
+  if (!running) return;
+
   // input jump
   if ((keys['Space'] || keys['ArrowUp']) && player.grounded){
     player.vy = -player.jumpPower; player.grounded = false; player.crouch = false;
@@ -201,26 +260,32 @@ function update(dt){
   player.crouch = !!keys['ArrowDown'] && player.grounded;
 
   // physics
+  if (!player.grounded) player.crouch = false; 
   player.vy += player.gravity; player.y += player.vy;
   if (player.y + player.h >= groundY){ player.y = groundY - player.h; player.vy = 0; player.grounded = true; }
 
   // speed scaling
-  if (running && score % 100 === 0 && score !== 0) speed = 6 + Math.floor(score / 200);
+  if (score % 100 === 0 && score > 0 && speed < 12) speed = 6 + Math.floor(score / 100) * 0.5;
 
   // obstacles
+  let playerH = player.crouch ? player.h - 12 : player.h;
+  let playerY = player.crouch ? player.y + 12 : player.y;
+
   for (let i = obstacles.length-1; i>=0; i--){
     const o = obstacles[i];
     o.x -= speed;
     if (!o.passed && o.x + o.w < player.x){ score++; o.passed = true; if (scoreEl) scoreEl.textContent = score; }
     if (o.x + o.w < -50) obstacles.splice(i,1);
-    if (rectIntersect(player.x, player.y, player.w, player.h, o.x, o.y, o.w, o.h)){
+    
+    // Cek tabrakan
+    if (rectIntersect(player.x, playerY, player.w, playerH, o.x, o.y, o.w, o.h)){
       gameOver();
     }
   }
 
   // spawn
   spawnTimer -= 1;
-  if (spawnTimer <= 0){ spawnObstacle(); spawnTimer = 60 + Math.floor(Math.random()*90); }
+  if (spawnTimer <= 0){ spawnObstacle(); spawnTimer = 60 + Math.floor(Math.random()*(90 - score/200)); }
 }
 
 function rectIntersect(x1,y1,w1,h1,x2,y2,w2,h2){
@@ -241,39 +306,58 @@ function draw(){
   // player
   ctx.save();
   ctx.fillStyle = '#ff8a42';
-  if (player.crouch){ ctx.fillRect(player.x, player.y + 12, player.w, player.h - 12); }
-  else{ ctx.fillRect(player.x, player.y, player.w, player.h); }
+  if (player.crouch){ 
+    ctx.fillRect(player.x, player.y + 12, player.w, player.h - 12); 
+  }
+  else{ 
+    ctx.fillRect(player.x, player.y, player.w, player.h); 
+  }
   ctx.restore();
 
   // obstacles
   ctx.fillStyle = '#ff6b6b';
   obstacles.forEach(o => { ctx.fillRect(o.x, o.y, o.w, o.h); });
 
-  // scoreboard on canvas (redundant with DOM, but kept)
-  ctx.fillStyle = 'rgba(230,238,248,0.9)'; ctx.font = '16px Arial'; ctx.textAlign='left';
-  ctx.fillText('Score: '+score, 12, 22);
-  ctx.fillText('High: '+highScore, 12, 40);
-
-  // hint when not running
-  if (!running){
-    ctx.fillStyle='rgba(230,238,248,0.9)'; ctx.textAlign='center'; ctx.font='15px Arial';
-    ctx.fillText('Klik "Mulai / Restart" atau tekan Space untuk mulai', W/2, H/2 - 70);
+  // LOGIC GAMBAR HITUNGAN MUNDUR
+  if (countdown > 0) {
+    const seconds = Math.ceil(countdown / 60); 
+    let text = seconds.toString();
+    
+    if (seconds === 1 && countdown < 60) {
+        text = "MULAI!";
+    }
+    
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'; 
+    ctx.textAlign = 'center';
+    
+    ctx.font = 'bold 72px Poppins, Arial'; 
+    ctx.shadowColor = 'rgba(0, 0, 0, 0.5)';
+    ctx.shadowBlur = 10;
+    
+    ctx.fillText(text, W / 2, H / 2 + 20);
+    
+    ctx.shadowBlur = 0; 
   }
 }
 
-// main loop (always scheduled, update only when running)
+// main loop
 let last = performance.now();
 function loop(now){
   const t = now || performance.now();
   const dt = t - last; last = t;
-  if (running){ update(dt); }
+  // Update dilakukan jika running ATAU sedang countdown
+  if (running || countdown > 0){ update(dt); } 
   draw();
   requestAnimationFrame(loop);
 }
 requestAnimationFrame(loop);
 
-// initial state: show overlay
-showOverlay('Tekan Mulai untuk memulai permainan.');
+// initial state: Tampilkan layar "Siap Bermain?"
+overlay.style.opacity = '1';
+gamePanel.style.display = 'block';
+gamePanel.style.padding = '22px'; // Set padding awal
+textContent.style.display = 'block'; 
+if (gameoverVideo) gameoverVideo.style.display = 'none'; // Sembunyikan video di awal
 
 // responsive canvas resizing
 window.addEventListener('resize', () => {
@@ -283,5 +367,6 @@ window.addEventListener('resize', () => {
 });
 window.dispatchEvent(new Event('resize'));
 </script>
+
 </body>
 </html>
